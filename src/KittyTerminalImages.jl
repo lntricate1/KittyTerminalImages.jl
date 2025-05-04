@@ -69,25 +69,18 @@ show_custom(io::IO, m::MIME, x) = show(io, m , x)
 
 # values for control data: https://sw.kovidgoyal.net/kitty/graphics-protocol.html#control-data-reference
 function write_kitty_image_escape_sequence(io::IO, payload::AbstractVector{UInt8}; controll_data...)
-
-    cmd_prefix = "\033_G"
+    write(io, b"\033_G")
     first_iteration = true
     for (key, value) in controll_data
         if first_iteration
             first_iteration = false
         else
-            cmd_prefix *= ','
+            write(io, ',')
         end
-        cmd_prefix *= string(key)
-        cmd_prefix *= '='
-        cmd_prefix*= string(value)
+        write(io, string(key), '=', string(value))
     end
-    cmd_prefix *= ';'
-    cmd_postfix = "\033\\"
-    cmd = [transcode(UInt8, cmd_prefix); payload; transcode(UInt8, cmd_postfix)]
-    write(io, cmd)
-
-    return
+    write(io, ';', payload, b"\033\\")
+    return nothing
 end
 
 
