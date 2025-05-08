@@ -5,8 +5,6 @@ using Rsvg
 using Cairo: FORMAT_ARGB32, CairoImageSurface, CairoContext
 import Cairo
 using Base.Multimedia: xdisplayable
-using ImageCore: RGBA, channelview
-using CodecZlib: ZlibCompressor, ZlibCompressorStream
 using Interpolations: interpolate, BSpline, Linear
 using PNGFiles
 
@@ -19,6 +17,7 @@ struct KittyDisplay <: AbstractDisplay end
 
 include("configuration.jl")
 include("images.jl")
+include("encode.jl")
 
 function __init__()
     # TODO verify that we are actually using kitty
@@ -32,57 +31,16 @@ function draw_temp_file(img)
     PNGFiles.save(io, img)
     close(io)
 
-    payload = transcode(UInt8, base64encode(path))
-    write_kitty_image_escape_sequence(stdout, payload, f=100, t='t', X=1, Y=1, a='T')
+    payload = base64encode(path)
+    write_kitty_image_escape_sequence_raw(stdout, payload, f="100", t="t", X="1", Y="1", a="T")
 end
 
 function draw_direct(img)
-
-    # TODO this adds some unnecessary channels for alpha and colors that are not always necessary
-    # TODO might be easier to write to a png then we have some compression, then we can also maybe remove zlib
-    img_rgba = permutedims(channelview(RGBA.(img)), (1, 3, 2))
-    img_encoded = base64encode(ZlibCompressorStream(IOBuffer(vec(reinterpret(UInt8, img_rgba)))))
-
-    (_, width, height) = size(img_rgba)
-
-    buff = IOBuffer()
-    partitions = Iterators.partition(transcode(UInt8, img_encoded), 4096)
-    for (i, payload) in enumerate(partitions)
-
-        m = (i == length(partitions)) ? 0 : 1 # 0 if this is the last data chunk
-
-        if i == 1
-            write_kitty_image_escape_sequence(buff, payload, f=32, s=width, v=height, X=1, Y=1, a='T', o='z', m=m)
-        else
-            write_kitty_image_escape_sequence(buff, payload, m=m)
-        end
-
-    end
-
-    write(stdout, take!(buff))
-
-    return
+    return kitty_encode_chunked(stdout, img; a="T")
 end
 
 # allows to define custom behaviour for special cases of show within this package
 show_custom(io::IO, m::MIME, x) = show(io, m , x)
-
-# values for control data: https://sw.kovidgoyal.net/kitty/graphics-protocol.html#control-data-reference
-function write_kitty_image_escape_sequence(io::IO, payload::AbstractVector{UInt8}; controll_data...)
-    write(io, b"\033_G")
-    first_iteration = true
-    for (key, value) in controll_data
-        if first_iteration
-            first_iteration = false
-        else
-            write(io, ',')
-        end
-        write(io, string(key), '=', string(value))
-    end
-    write(io, ';', payload, b"\033\\")
-    return nothing
-end
-
 
 # This is basically just what is defined in Base.Multimedia.display(x)
 # but tries to display with KittyDisplay before trying the rest of
