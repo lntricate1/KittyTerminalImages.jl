@@ -5,7 +5,7 @@ import Base64
 using Base64: Base64EncodePipe
 using CodecZlib: ZlibCompressorStream
 
-public kitty_encode, kitty_encode_chunked, kitty_encode_compressed, kitty_encode_chunked_compressed
+# public kitty_encode, kitty_encode_chunked, kitty_encode_compressed, kitty_encode_chunked_compressed
 
 # Non transparent colors
 """
