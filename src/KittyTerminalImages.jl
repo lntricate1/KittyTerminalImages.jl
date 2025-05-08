@@ -32,11 +32,11 @@ function draw_temp_file(img)
     close(io)
 
     payload = base64encode(path)
-    write_kitty_image_escape_sequence_raw(stdout, payload, f="100", t="t", X="1", Y="1", a="T")
+    write_kitty_image_escape_sequence_raw(stdout, payload, f="100", t="t", X="1", Y="1", a="T", q="1")
 end
 
 function draw_direct(img)
-    return kitty_encode_chunked(stdout, img; a="T")
+    return kitty_encode_chunked(stdout, img; a="T", q="1")
 end
 
 # allows to define custom behaviour for special cases of show within this package
